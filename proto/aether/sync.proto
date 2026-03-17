@@ -1,0 +1,79 @@
+syntax = "proto3";
+
+package aether.sync;
+
+option go_package = "github.com/user/aether/proto/aether";
+
+// --- Handshake ---
+
+message AuthChallenge {
+    bytes nonce = 1;
+    int64 expires_at = 2; // Unix timestamp
+}
+
+message AuthResponse {
+    bytes device_id = 1;      // PeerID bytes
+    bytes signature = 2;      // Ed25519 signature of the nonce
+    int64 timestamp = 3;      // Client's timestamp for replay protection
+}
+
+message AuthResult {
+    bool ok = 1;
+    string error_message = 2;
+    string session_token = 3;  // Optional: for subsequent validation
+}
+
+// --- Fetch ---
+
+message FetchRequest {
+    int64 after_seq = 1;    // Request messages with global_seq > after_seq
+    uint32 limit = 2;       // Max messages to return
+}
+
+message SyncMessage {
+    string id = 1;
+    string conversation_id = 2;
+    string sender_id = 3;
+    bytes content = 4;      // Encrypted payload
+    int64 global_seq = 5;
+    bytes sender_signature = 6;
+    int64 sent_at = 7;
+}
+
+message FetchResponse {
+    repeated SyncMessage messages = 1;
+    int64 max_seq = 2;      // Highest global_seq in this batch
+    bool has_more = 3;
+}
+
+// --- Acknowledgement ---
+
+message AckRequest {
+    int64 acked_seq = 1;    // Highest sequence successfully saved by client
+}
+
+message AckResponse {
+    bool ok = 1;
+}
+
+// --- Push ---
+
+message PushEnvelope {
+    oneof type {
+        SyncMessage new_message = 1;
+        DeliveryReceipt delivery = 2;
+        ReadReceipt read = 3;
+    }
+}
+
+message DeliveryReceipt {
+    string message_id = 1;
+    string device_id = 2;
+    int64 delivered_at = 3;
+}
+
+message ReadReceipt {
+    string message_id = 1;
+    string device_id = 2;
+    int64 read_at = 3;
+}
