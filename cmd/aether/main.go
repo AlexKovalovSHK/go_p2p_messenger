@@ -40,6 +40,8 @@ func main() {
 	}
 	log.Println("Database initialized and migrations applied.")
 
+	msgRepo := storage.NewMessageRepository(db)
+
 	// 2. Identity setup
 	keyPath := filepath.Join(dataDir, "identity.key")
 	idMgr := identity.NewIdentityManager(keyPath)
@@ -59,6 +61,8 @@ func main() {
 		log.Println("Generated new identity and saved to keystore.")
 	}
 
+	processor := logic.NewMessageProcessor(id.PrivateKey, bus, msgRepo)
+
 	// 3. Transport setup (Sprint 2)
 	ctx := context.Background()
 	p2pHost, err := transport.NewLibp2pHost(id, 0)
@@ -69,7 +73,10 @@ func main() {
 
 	tPort := transport.NewLibp2pTransport(p2pHost)
 	tPort.Subscribe(func(from peer.ID, payload []byte) {
-		log.Printf(">>> Received message from %s: %s", from, string(payload))
+		log.Printf(">>> Received message from %s, processing...", from)
+		if err := processor.ProcessIncoming(ctx, from, payload); err != nil {
+			log.Printf("Error processing incoming message from %s: %v", from, err)
+		}
 	})
 
 	// Start Discovery
@@ -90,9 +97,6 @@ func main() {
 	})
 
 	// 4. API & UI Initialization (Sprint 4 & 5)
-	msgRepo := storage.NewMessageRepository(db)
-	processor := logic.NewMessageProcessor(id.PrivateKey, bus)
-	
 	chatSvc := api.NewChatService(msgRepo, processor, tPort, bus)
 	nodeSvc := api.NewNodeService(id, tPort, bus)
 

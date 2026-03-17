@@ -37,7 +37,7 @@ func TestChatService_GetMessages(t *testing.T) {
 	require.NoError(t, err)
 
 	bus := event.NewBus()
-	proc := logic.NewMessageProcessor(nil, bus) // nil privKey for now
+	proc := logic.NewMessageProcessor(nil, bus, msgRepo) // nil privKey for now
 	tp := transport.NewMockTransport()
 
 	svc := api.NewChatService(msgRepo, proc, tp, bus)

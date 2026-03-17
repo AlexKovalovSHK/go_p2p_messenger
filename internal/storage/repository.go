@@ -34,13 +34,26 @@ func NewMessageRepository(db *DB) *MessageRepository {
 // Save attempts to insert a new message. Uses INSERT OR IGNORE for idempotency.
 func (r *MessageRepository) Save(ctx context.Context, msg *Message) error {
 	return r.db.WriteTransaction(func(tx *sql.Tx) error {
+		// If global_seq is 0, we try to assign one locally to keep the UNIQUE constraint happy
+		// if we strictly need it, but since we removed NOT NULL, we can just pass nil if it's 0.
+		// However, for local ordering it's better to have it.
+		
+		var seq interface{}
+		if msg.GlobalSeq > 0 {
+			seq = msg.GlobalSeq
+		} else {
+			// Local messages get a high sequence or NULL. 
+			// Let's use NULL for now to avoid collisions with PN sequences.
+			seq = nil 
+		}
+
 		query := `
 			INSERT OR IGNORE INTO messages 
-			(id, conversation_id, sender_id, content, global_seq, sender_signature, sent_at, is_incoming, status, delivered_at, read_at) 
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			(id, conversation_id, sender_id, content, global_seq, sender_signature, sent_at, is_incoming, status, chat_id, timestamp, delivered_at, read_at) 
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`
 		_, err := tx.ExecContext(ctx, query,
-			msg.ID, msg.ConversationID, msg.SenderID, msg.Content, msg.GlobalSeq, msg.SenderSignature, msg.SentAt, msg.IsIncoming, msg.Status, msg.DeliveredAt, msg.ReadAt)
+			msg.ID, msg.ConversationID, msg.SenderID, msg.Content, seq, msg.SenderSignature, msg.SentAt, msg.IsIncoming, msg.Status, msg.ConversationID, msg.SentAt, msg.DeliveredAt, msg.ReadAt)
 		return err
 	})
 }
@@ -80,8 +93,43 @@ func (r *MessageRepository) GetSince(ctx context.Context, conversationID string,
 	var msgs []*Message
 	for rows.Next() {
 		m := &Message{}
-		if err := rows.Scan(&m.ID, &m.ConversationID, &m.SenderID, &m.Content, &m.GlobalSeq, &m.SenderSignature, &m.SentAt, &m.IsIncoming, &m.Status, &m.DeliveredAt, &m.ReadAt); err != nil {
+		var seq sql.NullInt64
+		if err := rows.Scan(&m.ID, &m.ConversationID, &m.SenderID, &m.Content, &seq, &m.SenderSignature, &m.SentAt, &m.IsIncoming, &m.Status, &m.DeliveredAt, &m.ReadAt); err != nil {
 			return nil, fmt.Errorf("scan message: %w", err)
+		}
+		if seq.Valid {
+			m.GlobalSeq = seq.Int64
+		}
+		msgs = append(msgs, m)
+	}
+	return msgs, rows.Err()
+}
+
+// GetMessagesByChat returns messages for a specific chat ordered by timestamp.
+// This is used by the UI to show all messages regardless of synchronization status.
+func (r *MessageRepository) GetMessagesByChat(ctx context.Context, chatID string, limit int) ([]*Message, error) {
+	query := `
+		SELECT id, conversation_id, sender_id, content, global_seq, sender_signature, sent_at, is_incoming, status, chat_id, timestamp, delivered_at, read_at 
+		FROM messages 
+		WHERE chat_id = ? 
+		ORDER BY timestamp ASC 
+		LIMIT ?
+	`
+	rows, err := r.db.QueryContext(ctx, query, chatID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query messages by chat: %w", err)
+	}
+	defer rows.Close()
+
+	var msgs []*Message
+	for rows.Next() {
+		m := &Message{}
+		var seq sql.NullInt64
+		if err := rows.Scan(&m.ID, &m.ConversationID, &m.SenderID, &m.Content, &seq, &m.SenderSignature, &m.SentAt, &m.IsIncoming, &m.Status, &m.ConversationID, &m.SentAt, &m.DeliveredAt, &m.ReadAt); err != nil {
+			return nil, fmt.Errorf("scan message: %w", err)
+		}
+		if seq.Valid {
+			m.GlobalSeq = seq.Int64
 		}
 		msgs = append(msgs, m)
 	}

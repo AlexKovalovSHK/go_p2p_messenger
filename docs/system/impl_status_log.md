@@ -9,5 +9,14 @@
 - [x] **Storage (SQLite)**: Новые миграции (`contacts`, `messages` update).
 - [x] **Integration**: Внедрение шины в `main.go`.
 
+## Спринт 2: Бизнес-логика
+**Статус**: Завершено
+
+### Задачи Спринта 2:
+- [x] **Message Processing**: Реализация `ProcessIncoming(from, payload)` в `Processor`.
+- [x] **Storage Integration**: Автоматическое сохранение входящих сообщений в БД.
+- [x] **Event Propagation**: Публикация `chat.message.new` при получении.
+- [x] **Peer Events**: Публикация событий онлайн/оффлайн при обнаружении пиров.
+
 ---
 *Заметки*: Переходим на строковые топики по запросу пользователя для упрощения отладки в UI.

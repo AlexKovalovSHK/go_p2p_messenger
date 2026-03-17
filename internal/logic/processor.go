@@ -1,22 +1,28 @@
 package logic
 
 import (
+	"context"
 	"crypto/rand"
 	"errors"
+	"fmt"
+	"time"
 
 	"github.com/libp2p/go-libp2p/core/crypto"
+	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/user/aether/internal/event"
+	"github.com/user/aether/internal/storage"
 )
 
 // MessageProcessor handles high-level message logic: encryption, signing, and validation.
 type MessageProcessor struct {
 	privKey crypto.PrivKey
 	bus     *event.Bus
+	msgRepo *storage.MessageRepository
 }
 
 // NewMessageProcessor creates a process for handling end-to-end security.
-func NewMessageProcessor(privKey crypto.PrivKey, bus *event.Bus) *MessageProcessor {
-	return &MessageProcessor{privKey: privKey, bus: bus}
+func NewMessageProcessor(privKey crypto.PrivKey, bus *event.Bus, msgRepo *storage.MessageRepository) *MessageProcessor {
+	return &MessageProcessor{privKey: privKey, bus: bus, msgRepo: msgRepo}
 }
 
 // EncryptFor encrypts a payload for a recipient's public key using X25519 + ChaCha20Poly1305 (simplified ECIES).
@@ -80,4 +86,42 @@ func (p *MessageProcessor) SealMessage(recipientPubKey crypto.PubKey, payload []
 	}
 	
 	return encPayload, sig, nil
+}
+
+// ProcessIncoming handles an incoming raw payload: decrypts, saves, and notifies.
+func (p *MessageProcessor) ProcessIncoming(ctx context.Context, from peer.ID, payload []byte) error {
+	// 1. Decrypt (Mock for now as per EncryptFor)
+	decrypted, err := p.Decrypt(payload)
+	if err != nil {
+		return fmt.Errorf("decrypt failed: %w", err)
+	}
+
+	// 2. Wrap into Message object
+	msg := &storage.Message{
+		ID:             fmt.Sprintf("in_%d", time.Now().UnixNano()),
+		ConversationID: from.String(),
+		SenderID:       from.String(),
+		Content:        decrypted,
+		IsIncoming:     true,
+		Status:         "delivered",
+		SentAt:         time.Now().Unix(),
+	}
+
+	// 3. Save to storage
+	if err := p.msgRepo.Save(ctx, msg); err != nil {
+		return fmt.Errorf("failed to save incoming message: %w", err)
+	}
+
+	// 4. Publish Event
+	p.bus.Publish(event.TopicNewMessage, event.MessageEvent{
+		ID:         msg.ID,
+		ChatID:     msg.ConversationID,
+		SenderID:   msg.SenderID,
+		Text:       string(decrypted),
+		Timestamp:  msg.SentAt,
+		IsIncoming: true,
+		Status:     msg.Status,
+	})
+
+	return nil
 }

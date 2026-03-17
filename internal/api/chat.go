@@ -70,7 +70,7 @@ func (s *ChatService) ListConversations(ctx context.Context) ([]ConversationDTO,
 
 // GetMessages returns messages for a conversation with pagination.
 func (s *ChatService) GetMessages(ctx context.Context, conversationID string, afterSeq int64, limit int) ([]MessageDTO, error) {
-	msgs, err := s.msgRepo.GetSince(ctx, conversationID, afterSeq, limit)
+	msgs, err := s.msgRepo.GetMessagesByChat(ctx, conversationID, limit)
 	if err != nil {
 		return nil, err
 	}
