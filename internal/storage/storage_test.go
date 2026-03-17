@@ -60,6 +60,8 @@ func TestStorage_MessageRepository(t *testing.T) {
 		GlobalSeq:       1,
 		SenderSignature: []byte("sig1"),
 		SentAt:          time.Now().UnixMilli(),
+		Status:          "received",
+		IsIncoming:      true,
 	}
 
 	// AC-S1-06: Save + GetSince

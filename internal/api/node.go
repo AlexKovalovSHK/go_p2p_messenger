@@ -19,11 +19,11 @@ type NodeStatus struct {
 type NodeService struct {
 	ident        *identity.Identity
 	tp           transport.MessageTransport
-	bus          event.Bus
+	bus          *event.Bus
 	reachability transport.ReachabilityStatus
 }
 
-func NewNodeService(ident *identity.Identity, tp transport.MessageTransport, bus event.Bus) *NodeService {
+func NewNodeService(ident *identity.Identity, tp transport.MessageTransport, bus *event.Bus) *NodeService {
 	s := &NodeService{
 		ident:        ident,
 		tp:           tp,
@@ -39,9 +39,9 @@ func NewNodeService(ident *identity.Identity, tp transport.MessageTransport, bus
 
 func (s *NodeService) watchReachability() {
 	// Simple subscription for status
-	ch := s.bus.Subscribe(context.Background(), event.EventNodeReachability)
+	ch := s.bus.Subscribe(event.TopicNodeReachability)
 	for ev := range ch {
-		if status, ok := ev.Data.(transport.ReachabilityStatus); ok {
+		if status, ok := ev.(transport.ReachabilityStatus); ok {
 			s.reachability = status
 		}
 	}

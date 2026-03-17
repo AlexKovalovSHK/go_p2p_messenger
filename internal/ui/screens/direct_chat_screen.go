@@ -4,6 +4,8 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
+	"fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/user/aether/internal/api"
@@ -58,7 +60,13 @@ func (s *DirectChatScreen) Render() fyne.CanvasObject {
 	})
 
 	footer := container.NewBorder(nil, nil, nil, sendBtn, input)
-	header := container.NewHBox(widget.NewButton("Back", s.onBack), widget.NewLabel(s.vm.GetPeerID()))
+	
+	header := container.NewHBox(
+		widget.NewIcon(theme.AccountIcon()),
+		widget.NewLabelWithStyle(s.vm.GetPeerID(), fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
+		layout.NewSpacer(),
+		widget.NewLabel("● Online"),
+	)
 
 	return container.NewBorder(header, footer, nil, nil, list)
 }

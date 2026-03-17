@@ -58,7 +58,6 @@ func main() {
 		}
 		log.Println("Generated new identity and saved to keystore.")
 	}
-	log.Println("Generated new identity.")
 
 	// 3. Transport setup (Sprint 2)
 	ctx := context.Background()
@@ -98,38 +97,48 @@ func main() {
 	nodeSvc := api.NewNodeService(id, tPort, bus)
 
 	nav := ui.NewAppNavigator("Aether Messenger")
+	mainVM := viewmodel.NewMainViewModel()
 	
 	// Define navigation transitions
-	var showChatList func()
+	var showMainChat func()
 	var showDirectChat func(peerID string)
 
-	showChatList = func() {
-		vm := viewmodel.NewChatListViewModel(chatSvc, bus)
-		vm.Refresh(ctx, chatSvc)
-		vm.Watch(ctx, chatSvc)
+	showMainChat = func() {
+		listVM := viewmodel.NewChatListViewModel(chatSvc, bus)
+		listVM.Refresh(ctx, chatSvc)
+		listVM.Watch(ctx, chatSvc)
 		
-		screen := screens.NewChatListScreen(vm, func(peerID string) {
+		listScreen := screens.NewChatListScreen(listVM, func(peerID string) {
 			showDirectChat(peerID)
 		})
-		nav.Push(screen.Render())
+		
+		nav.SetMaster(listScreen.Render())
+		nav.SetSplit() // Ensure we are in split mode
 	}
 
 	showDirectChat = func(peerID string) {
-		vm := viewmodel.NewDirectChatViewModel(chatSvc, bus, peerID)
-		vm.LoadMessages(ctx)
-		vm.Watch(ctx)
+		mainVM.CurrentChatID.Set(peerID)
 		
-		screen := screens.NewDirectChatScreen(vm, chatSvc, func() {
-			showChatList()
+		chatVM := viewmodel.NewDirectChatViewModel(chatSvc, bus, peerID)
+		chatVM.LoadMessages(ctx)
+		chatVM.Watch(ctx)
+		
+		chatScreen := screens.NewDirectChatScreen(chatVM, chatSvc, func() {
+			// In Master-Detail, "back" might just clear the detail
+			nav.SetDetail(nil) 
 		})
-		nav.Push(screen.Render())
+		nav.SetDetail(chatScreen.Render())
 	}
 
-	// Initial screen
-	idScreen := screens.NewIdentityScreen(nodeSvc, func() {
-		showChatList()
-	})
-	nav.Push(idScreen.Render())
+	// Initial screen logic
+	if idMgr.HasKey() {
+		showMainChat()
+	} else {
+		idScreen := screens.NewIdentityScreen(nodeSvc, func() {
+			showMainChat()
+		})
+		nav.SetContent(idScreen.Render())
+	}
 
 	// 5. Final startup logic
 	log.Printf("Aether Node Started: %s", id.DeviceID())

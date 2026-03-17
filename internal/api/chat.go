@@ -37,10 +37,10 @@ type ChatService struct {
 	msgRepo   *storage.MessageRepository
 	processor *logic.MessageProcessor
 	tp        transport.MessageTransport
-	bus       event.Bus
+	bus       *event.Bus
 }
 
-func NewChatService(msgRepo *storage.MessageRepository, processor *logic.MessageProcessor, tp transport.MessageTransport, bus event.Bus) *ChatService {
+func NewChatService(msgRepo *storage.MessageRepository, processor *logic.MessageProcessor, tp transport.MessageTransport, bus *event.Bus) *ChatService {
 	return &ChatService{
 		msgRepo:   msgRepo,
 		processor: processor,
@@ -129,10 +129,15 @@ func (s *ChatService) SendMessage(ctx context.Context, recipientID peer.ID, reci
 		Status:         "sent",
 	}
 
-	// 4. Notify UI
-	s.bus.Publish(event.Event{
-		Type: event.EventMessageSent,
-		Data: dto,
+	// 4. Notify UI via standardized Event
+	s.bus.Publish(event.TopicNewMessage, event.MessageEvent{
+		ID:         dto.ID,
+		ChatID:     dto.ConversationID,
+		SenderID:   dto.SenderID,
+		Text:       dto.Content,
+		Timestamp:  dto.SentAt.Unix(),
+		IsIncoming: false,
+		Status:     dto.Status,
 	})
 
 	return dto, nil

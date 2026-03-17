@@ -19,13 +19,13 @@ type SyncEngine struct {
 	ident    *identity.Identity
 	msgRepo  *storage.MessageRepository
 	syncRepo *storage.DeviceSyncRepository
-	bus      event.Bus
+	bus      *event.Bus
 
 	nodeID   peer.ID
 	nodeAddr string
 }
 
-func NewSyncEngine(h host.Host, ident *identity.Identity, msgRepo *storage.MessageRepository, syncRepo *storage.DeviceSyncRepository, bus event.Bus) *SyncEngine {
+func NewSyncEngine(h host.Host, ident *identity.Identity, msgRepo *storage.MessageRepository, syncRepo *storage.DeviceSyncRepository, bus *event.Bus) *SyncEngine {
 	return &SyncEngine{
 		h:        h,
 		ident:    ident,
@@ -76,7 +76,7 @@ func (e *SyncEngine) syncCycle(ctx context.Context) error {
 	}
 	defer rw.Close()
 
-	e.bus.Publish(event.Event{Type: event.EventSyncStarted})
+	e.bus.Publish(event.TopicSyncStatus, event.SyncEvent{Status: "started"})
 
 	err = client.FetchLoop(ctx, rw, func(msgs []*pb.SyncMessage) error {
 		for _, m := range msgs {
@@ -94,10 +94,15 @@ func (e *SyncEngine) syncCycle(ctx context.Context) error {
 				return err
 			}
 
-			// Notify UI/others
-			e.bus.Publish(event.Event{
-				Type: event.EventMessageReceived,
-				Data: m, // Or a DTO
+			// Notify UI/others via standardized MessageEvent
+			e.bus.Publish(event.TopicNewMessage, event.MessageEvent{
+				ID:         m.Id,
+				ChatID:     m.ConversationId,
+				SenderID:   m.SenderId,
+				Text:       string(m.Content), // UI will handle display
+				Timestamp:  m.SentAt,
+				IsIncoming: true,
+				Status:     "delivered",
 			})
 		}
 		
@@ -110,9 +115,9 @@ func (e *SyncEngine) syncCycle(ctx context.Context) error {
 	})
 
 	if err == nil {
-		e.bus.Publish(event.Event{Type: event.EventSyncCompleted})
+		e.bus.Publish(event.TopicSyncStatus, event.SyncEvent{Status: "completed"})
 	} else {
-		e.bus.Publish(event.Event{Type: event.EventSyncFailed, Data: err.Error()})
+		e.bus.Publish(event.TopicSyncStatus, event.SyncEvent{Status: "failed"})
 	}
 
 	return err

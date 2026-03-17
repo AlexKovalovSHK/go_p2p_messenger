@@ -38,7 +38,7 @@ func StartMDNS(h host.Host, serviceTag string, onFound func(peer.AddrInfo)) (mdn
 }
 
 // SetupAutoNAT subscribes to reachability changes and publishes them to the event bus.
-func SetupAutoNAT(h host.Host, bus aetherEvent.Bus, onReachabilityChanged func(ReachabilityStatus)) {
+func SetupAutoNAT(h host.Host, bus *aetherEvent.Bus, onReachabilityChanged func(ReachabilityStatus)) {
 	sub, err := h.EventBus().Subscribe(new(event.EvtLocalReachabilityChanged))
 	if err != nil {
 		log.Printf("Failed to subscribe to reachability events: %v", err)
@@ -62,10 +62,7 @@ func SetupAutoNAT(h host.Host, bus aetherEvent.Bus, onReachabilityChanged func(R
 				status = ReachabilityUnknown
 			}
 			onReachabilityChanged(status)
-			bus.Publish(aetherEvent.Event{
-				Type: aetherEvent.EventNodeReachability,
-				Data: status,
-			})
+			bus.Publish(aetherEvent.TopicNodeReachability, status)
 		}
 	}()
 }

@@ -1,7 +1,6 @@
 package event
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -10,56 +9,49 @@ import (
 
 func TestEventBus_PubSub(t *testing.T) {
 	bus := NewBus()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
-	sub := bus.Subscribe(ctx, EventMessageReceived)
+	sub := bus.Subscribe(TopicNewMessage)
+
+	expectedData := MessageEvent{Text: "hello world"}
 
 	go func() {
-		bus.Publish(Event{
-			Type: EventMessageReceived,
-			Data: "hello world",
-		})
+		// Small sleep to ensure subscriber is ready (though our implementation handles it)
+		time.Sleep(10 * time.Millisecond)
+		bus.Publish(TopicNewMessage, expectedData)
 	}()
 
 	select {
 	case ev := <-sub:
-		assert.Equal(t, EventMessageReceived, ev.Type)
-		assert.Equal(t, "hello world", ev.Data)
+		assert.Equal(t, expectedData, ev)
 	case <-time.After(time.Second):
 		t.Fatal("Timeout waiting for event")
 	}
 }
 
-func TestEventBus_Unsubscribe(t *testing.T) {
+func TestEventBus_MultipleSubscribers(t *testing.T) {
 	bus := NewBus()
-	ctx, cancel := context.WithCancel(context.Background())
 
-	sub := bus.Subscribe(ctx, EventSyncCompleted)
-	
-	cancel() // Unsubscribe
+	sub1 := bus.Subscribe(TopicSyncStatus)
+	sub2 := bus.Subscribe(TopicSyncStatus)
 
-	// Wait for unsubscription to process
-	time.Sleep(50 * time.Millisecond)
+	expected := SyncEvent{Status: "completed"}
 
-	bus.Publish(Event{Type: EventSyncCompleted, Data: 123})
+	go func() {
+		time.Sleep(10 * time.Millisecond)
+		bus.Publish(TopicSyncStatus, expected)
+	}()
 
-	_, ok := <-sub
-	assert.False(t, ok, "Channel should be closed after unsubscription")
-}
+	select {
+	case ev1 := <-sub1:
+		assert.Equal(t, expected, ev1)
+	case <-time.After(time.Second):
+		t.Fatal("Sub1 timeout")
+	}
 
-func TestEventBus_MultipleTypes(t *testing.T) {
-	bus := NewBus()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	sub := bus.Subscribe(ctx, EventPeerConnected, EventPeerDisconnected)
-
-	bus.Publish(Event{Type: EventPeerConnected, Data: "peer1"})
-	ev1 := <-sub
-	assert.Equal(t, EventPeerConnected, ev1.Type)
-
-	bus.Publish(Event{Type: EventPeerDisconnected, Data: "peer1"})
-	ev2 := <-sub
-	assert.Equal(t, EventPeerDisconnected, ev2.Type)
+	select {
+	case ev2 := <-sub2:
+		assert.Equal(t, expected, ev2)
+	case <-time.After(time.Second):
+		t.Fatal("Sub2 timeout")
+	}
 }

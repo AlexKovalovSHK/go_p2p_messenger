@@ -1,94 +1,73 @@
 package event
 
 import (
-	"context"
 	"sync"
 )
 
-// EventType distinguishes between different types of events in the system.
-type EventType string
-
 const (
-	EventMessageReceived    EventType = "message_received"
-	EventMessageSent        EventType = "message_sent"
-	EventNodeReachability   EventType = "node_reachability"
-	EventPeerConnected      EventType = "peer_connected"
-	EventPeerDisconnected   EventType = "peer_disconnected"
-	EventSyncStarted        EventType = "sync_started"
-	EventSyncCompleted      EventType = "sync_completed"
-	EventSyncFailed         EventType = "sync_failed"
+	// Chat Events
+	TopicNewMessage = "chat.message.new"
+	
+	// Sync Events
+	TopicSyncStatus = "sync.status"
+	
+	// Connection Events
+	TopicNodeReachability = "node.reachability"
 )
 
-// Event carries a payload for a specific type.
-type Event struct {
-	Type EventType
-	Data interface{}
+// MessageEvent payload for new messages
+type MessageEvent struct {
+	ID         string
+	ChatID     string
+	SenderID   string
+	Text       string
+	Timestamp  int64
+	IsIncoming bool
+	Status     string
 }
 
-// Bus defines the interface for an internal event-driven communication.
-type Bus interface {
-	Publish(event Event)
-	Subscribe(ctx context.Context, types ...EventType) <-chan Event
+// SyncEvent payload for synchronization progress
+type SyncEvent struct {
+	Status  string // "started", "completed", "failed"
+	Progress float64
 }
 
-// channelBus is a simple implementation of Bus using Go channels.
-type channelBus struct {
+// Bus представляет потокобезопасную шину событий.
+type Bus struct {
 	mu          sync.RWMutex
-	subscribers map[EventType][]chan Event
+	subscribers map[string][]chan interface{}
 }
 
-// NewBus creates a new instance of the event bus.
-func NewBus() Bus {
-	return &channelBus{
-		subscribers: make(map[EventType][]chan Event),
+// NewBus создает новый экземпляр шины событий.
+func NewBus() *Bus {
+	return &Bus{
+		subscribers: make(map[string][]chan interface{}),
 	}
 }
 
-// Publish sends an event to all interested subscribers.
-// It is non-blocking for the publisher.
-func (b *channelBus) Publish(event Event) {
+// Publish отправляет данные во все каналы, подписанные на указанный топик.
+func (b *Bus) Publish(topic string, data interface{}) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 
-	subs := b.subscribers[event.Type]
-	for _, ch := range subs {
-		select {
-		case ch <- event:
-		default:
-			// Buffer full, skip to avoid blocking the system
+	if chans, found := b.subscribers[topic]; found {
+		for _, ch := range chans {
+			// Отправка в неблокирующем режиме, чтобы медленные подписчики не тормозили систему.
+			select {
+			case ch <- data:
+			default:
+				// Буфер полон, сообщение пропускается.
+			}
 		}
 	}
 }
 
-// Subscribe returns a channel that receive events of the specified types.
-// The subscription is automatically cleaned up when the context is cancelled.
-func (b *channelBus) Subscribe(ctx context.Context, types ...EventType) <-chan Event {
-	ch := make(chan Event, 32) // Buffered channel for robustness
-
+// Subscribe создает канал и подписывает его на указанный топик.
+func (b *Bus) Subscribe(topic string) chan interface{} {
 	b.mu.Lock()
-	for _, t := range types {
-		b.subscribers[t] = append(b.subscribers[t], ch)
-	}
-	b.mu.Unlock()
+	defer b.mu.Unlock()
 
-	// Handle unsubscription
-	go func() {
-		<-ctx.Done()
-		b.mu.Lock()
-		defer b.mu.Unlock()
-
-		for _, t := range types {
-			subs := b.subscribers[t]
-			for i, s := range subs {
-				if s == ch {
-					// Remove from slice
-					b.subscribers[t] = append(subs[:i], subs[i+1:]...)
-					break
-				}
-			}
-		}
-		close(ch)
-	}()
-
+	ch := make(chan interface{}, 100) // Буферизация для стабильности
+	b.subscribers[topic] = append(b.subscribers[topic], ch)
 	return ch
 }

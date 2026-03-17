@@ -12,13 +12,13 @@ import (
 // DirectChatViewModel manages the message list for a specific peer.
 type DirectChatViewModel struct {
 	chatSvc *api.ChatService
-	bus     event.Bus
+	bus     *event.Bus
 	peerID  string
 
 	Messages binding.UntypedList
 }
 
-func NewDirectChatViewModel(chatSvc *api.ChatService, bus event.Bus, peerID string) *DirectChatViewModel {
+func NewDirectChatViewModel(chatSvc *api.ChatService, bus *event.Bus, peerID string) *DirectChatViewModel {
 	return &DirectChatViewModel{
 		chatSvc:  chatSvc,
 		bus:      bus,
@@ -48,7 +48,7 @@ func (vm *DirectChatViewModel) LoadMessages(ctx context.Context) {
 
 // Watch listens for new messages in this conversation.
 func (vm *DirectChatViewModel) Watch(ctx context.Context) {
-	ch := vm.bus.Subscribe(ctx, event.EventMessageReceived, event.EventMessageSent)
+	ch := vm.bus.Subscribe(event.TopicNewMessage)
 	go func() {
 		for range ch {
 			// Ideally we filters here for peerID

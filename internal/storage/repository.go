@@ -15,6 +15,8 @@ type Message struct {
 	GlobalSeq       int64
 	SenderSignature []byte
 	SentAt          int64
+	IsIncoming      bool
+	Status          string
 	DeliveredAt     *int64
 	ReadAt          *int64
 }
@@ -34,11 +36,11 @@ func (r *MessageRepository) Save(ctx context.Context, msg *Message) error {
 	return r.db.WriteTransaction(func(tx *sql.Tx) error {
 		query := `
 			INSERT OR IGNORE INTO messages 
-			(id, conversation_id, sender_id, content, global_seq, sender_signature, sent_at, delivered_at, read_at) 
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			(id, conversation_id, sender_id, content, global_seq, sender_signature, sent_at, is_incoming, status, delivered_at, read_at) 
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`
 		_, err := tx.ExecContext(ctx, query,
-			msg.ID, msg.ConversationID, msg.SenderID, msg.Content, msg.GlobalSeq, msg.SenderSignature, msg.SentAt, msg.DeliveredAt, msg.ReadAt)
+			msg.ID, msg.ConversationID, msg.SenderID, msg.Content, msg.GlobalSeq, msg.SenderSignature, msg.SentAt, msg.IsIncoming, msg.Status, msg.DeliveredAt, msg.ReadAt)
 		return err
 	})
 }
@@ -51,7 +53,7 @@ func (r *MessageRepository) GetSince(ctx context.Context, conversationID string,
 
 	if conversationID == "" {
 		query = `
-			SELECT id, conversation_id, sender_id, content, global_seq, sender_signature, sent_at, delivered_at, read_at 
+			SELECT id, conversation_id, sender_id, content, global_seq, sender_signature, sent_at, is_incoming, status, delivered_at, read_at 
 			FROM messages 
 			WHERE global_seq > ? 
 			ORDER BY global_seq ASC 
@@ -60,7 +62,7 @@ func (r *MessageRepository) GetSince(ctx context.Context, conversationID string,
 		args = []interface{}{afterSeq, limit}
 	} else {
 		query = `
-			SELECT id, conversation_id, sender_id, content, global_seq, sender_signature, sent_at, delivered_at, read_at 
+			SELECT id, conversation_id, sender_id, content, global_seq, sender_signature, sent_at, is_incoming, status, delivered_at, read_at 
 			FROM messages 
 			WHERE conversation_id = ? AND global_seq > ? 
 			ORDER BY global_seq ASC 
@@ -78,7 +80,7 @@ func (r *MessageRepository) GetSince(ctx context.Context, conversationID string,
 	var msgs []*Message
 	for rows.Next() {
 		m := &Message{}
-		if err := rows.Scan(&m.ID, &m.ConversationID, &m.SenderID, &m.Content, &m.GlobalSeq, &m.SenderSignature, &m.SentAt, &m.DeliveredAt, &m.ReadAt); err != nil {
+		if err := rows.Scan(&m.ID, &m.ConversationID, &m.SenderID, &m.Content, &m.GlobalSeq, &m.SenderSignature, &m.SentAt, &m.IsIncoming, &m.Status, &m.DeliveredAt, &m.ReadAt); err != nil {
 			return nil, fmt.Errorf("scan message: %w", err)
 		}
 		msgs = append(msgs, m)
@@ -131,6 +133,7 @@ type Contact struct {
 	Multiaddr *string
 	Alias     *string
 	Trusted   bool
+	LastSeen  int64
 	CreatedAt int64
 }
 
@@ -145,14 +148,14 @@ func NewContactRepository(db *DB) *ContactRepository {
 
 func (r *ContactRepository) Add(ctx context.Context, c *Contact) error {
 	return r.db.WriteTransaction(func(tx *sql.Tx) error {
-		query := `INSERT OR REPLACE INTO contacts (peer_id, public_key, multiaddr, alias, trusted, created_at) VALUES (?, ?, ?, ?, ?, ?)`
-		_, err := tx.ExecContext(ctx, query, c.PeerID, c.PublicKey, c.Multiaddr, c.Alias, c.Trusted, c.CreatedAt)
+		query := `INSERT OR REPLACE INTO contacts (peer_id, public_key, multiaddr, alias, trusted, last_seen, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`
+		_, err := tx.ExecContext(ctx, query, c.PeerID, c.PublicKey, c.Multiaddr, c.Alias, c.Trusted, c.LastSeen, c.CreatedAt)
 		return err
 	})
 }
 
 func (r *ContactRepository) GetAll(ctx context.Context) ([]*Contact, error) {
-	query := `SELECT peer_id, public_key, multiaddr, alias, trusted, created_at FROM contacts`
+	query := `SELECT peer_id, public_key, multiaddr, alias, trusted, last_seen, created_at FROM contacts`
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
@@ -162,8 +165,8 @@ func (r *ContactRepository) GetAll(ctx context.Context) ([]*Contact, error) {
 	var contacts []*Contact
 	for rows.Next() {
 		c := &Contact{}
-		if err := rows.Scan(&c.PeerID, &c.PublicKey, &c.Multiaddr, &c.Alias, &c.Trusted, &c.CreatedAt); err != nil {
-			return nil, err
+		if err := rows.Scan(&c.PeerID, &c.PublicKey, &c.Multiaddr, &c.Alias, &c.Trusted, &c.LastSeen, &c.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan contact: %w", err)
 		}
 		contacts = append(contacts, c)
 	}

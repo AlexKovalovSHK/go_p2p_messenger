@@ -42,7 +42,6 @@ func (s *ChatListScreen) Render() fyne.CanvasObject {
 		val, _ := s.vm.Conversations.GetValue(id)
 		conv := val.(api.ConversationDTO)
 		s.onSelect(conv.ID)
-		list.Unselect(id)
 	}
 
 	header := widget.NewLabelWithStyle("Chats", fyne.TextAlignCenter, fyne.TextStyle{Bold: true})

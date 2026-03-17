@@ -11,11 +11,11 @@ import (
 // MessageProcessor handles high-level message logic: encryption, signing, and validation.
 type MessageProcessor struct {
 	privKey crypto.PrivKey
-	bus     event.Bus
+	bus     *event.Bus
 }
 
 // NewMessageProcessor creates a process for handling end-to-end security.
-func NewMessageProcessor(privKey crypto.PrivKey, bus event.Bus) *MessageProcessor {
+func NewMessageProcessor(privKey crypto.PrivKey, bus *event.Bus) *MessageProcessor {
 	return &MessageProcessor{privKey: privKey, bus: bus}
 }
 

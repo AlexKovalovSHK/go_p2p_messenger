@@ -12,12 +12,12 @@ import (
 // ChatListViewModel handles data binding for the conversation list.
 type ChatListViewModel struct {
 	chatSvc *api.ChatService
-	bus     event.Bus
+	bus     *event.Bus
 
 	Conversations binding.UntypedList
 }
 
-func NewChatListViewModel(chatSvc *api.ChatService, bus event.Bus) *ChatListViewModel {
+func NewChatListViewModel(chatSvc *api.ChatService, bus *event.Bus) *ChatListViewModel {
 	return &ChatListViewModel{
 		chatSvc:       nil, // Placeholder for actual injection
 		bus:           bus,
@@ -42,7 +42,7 @@ func (vm *ChatListViewModel) Refresh(ctx context.Context, chatSvc *api.ChatServi
 
 // Watch listens for new messages to trigger refreshes.
 func (vm *ChatListViewModel) Watch(ctx context.Context, chatSvc *api.ChatService) {
-	ch := vm.bus.Subscribe(ctx, event.EventMessageReceived, event.EventMessageSent)
+	ch := vm.bus.Subscribe(event.TopicNewMessage)
 	go func() {
 		for range ch {
 			vm.Refresh(ctx, chatSvc)
