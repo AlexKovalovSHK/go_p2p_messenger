@@ -50,9 +50,16 @@ func (vm *DirectChatViewModel) LoadMessages(ctx context.Context) {
 func (vm *DirectChatViewModel) Watch(ctx context.Context) {
 	ch := vm.bus.Subscribe(event.TopicNewMessage)
 	go func() {
-		for range ch {
-			// Ideally we filters here for peerID
-			vm.LoadMessages(ctx)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case ev := <-ch:
+				// If event contains ChatID, we could filter here.
+				// For now, reload always ensures we have latest.
+				_ = ev
+				vm.LoadMessages(ctx)
+			}
 		}
 	}()
 }

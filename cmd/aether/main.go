@@ -98,7 +98,7 @@ func main() {
 
 	// 4. API & UI Initialization (Sprint 4 & 5)
 	chatSvc := api.NewChatService(msgRepo, processor, tPort, bus)
-	nodeSvc := api.NewNodeService(id, tPort, bus)
+	nodeSvc := api.NewNodeService(idMgr, id, tPort, bus)
 
 	nav := ui.NewAppNavigator("Aether Messenger")
 	mainVM := viewmodel.NewMainViewModel()
@@ -109,8 +109,8 @@ func main() {
 
 	showMainChat = func() {
 		listVM := viewmodel.NewChatListViewModel(chatSvc, bus)
-		listVM.Refresh(ctx, chatSvc)
-		listVM.Watch(ctx, chatSvc)
+		listVM.Refresh(ctx)
+		listVM.Watch(ctx)
 		
 		listScreen := screens.NewChatListScreen(listVM, func(peerID string) {
 			showDirectChat(peerID)

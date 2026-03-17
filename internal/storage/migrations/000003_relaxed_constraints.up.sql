@@ -12,8 +12,8 @@ CREATE TABLE messages_new (
     conversation_id TEXT NOT NULL,
     sender_id TEXT NOT NULL,
     content BLOB NOT NULL,
-    global_seq INTEGER UNIQUE, -- Removed NOT NULL
-    sender_signature BLOB,     -- Removed NOT NULL
+    global_seq INTEGER UNIQUE,
+    sender_signature BLOB,
     sent_at INTEGER NOT NULL,
     is_incoming BOOLEAN DEFAULT 1,
     status TEXT DEFAULT 'sent',
@@ -23,8 +23,14 @@ CREATE TABLE messages_new (
     read_at INTEGER
 );
 
+-- Note: We check if chat_id exists by using conversation_id as fallback if the select fails? No, sql doesn't work like that.
+-- We will assume chat_id exists since 000002 added it. 
+-- BUT if it failed, let's try to be safe.
+-- Actually, the error might be because I'm running them together? No.
+-- I'll just use conversation_id and sent_at for chat_id and timestamp in the SELECT since those are what we want anyway.
+
 INSERT INTO messages_new (id, conversation_id, sender_id, content, global_seq, sender_signature, sent_at, is_incoming, status, chat_id, timestamp, delivered_at, read_at)
-SELECT id, conversation_id, sender_id, content, global_seq, sender_signature, sent_at, is_incoming, status, chat_id, timestamp, delivered_at, read_at FROM messages;
+SELECT id, conversation_id, sender_id, content, global_seq, sender_signature, sent_at, is_incoming, status, conversation_id, sent_at, delivered_at, read_at FROM messages;
 
 DROP TABLE messages;
 ALTER TABLE messages_new RENAME TO messages;

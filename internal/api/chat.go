@@ -58,9 +58,14 @@ func (s *ChatService) ListConversations(ctx context.Context) ([]ConversationDTO,
 
 	dtos := make([]ConversationDTO, 0, len(summaries))
 	for _, sum := range summaries {
+		lastMsg := string(sum.LastContent)
+		if decrypted, err := s.processor.Decrypt(sum.LastContent); err == nil {
+			lastMsg = string(decrypted)
+		}
+
 		dtos = append(dtos, ConversationDTO{
 			ID:          sum.ConversationID,
-			LastMessage: string(sum.LastContent), // TODO: Decrypt
+			LastMessage: lastMsg,
 			LastSentAt:  time.Unix(sum.LastSentAt, 0),
 			UnreadCount: sum.UnreadCount,
 		})
@@ -77,11 +82,16 @@ func (s *ChatService) GetMessages(ctx context.Context, conversationID string, af
 
 	dtos := make([]MessageDTO, 0, len(msgs))
 	for _, m := range msgs {
+		content := string(m.Content)
+		if decrypted, err := s.processor.Decrypt(m.Content); err == nil {
+			content = string(decrypted)
+		}
+
 		dtos = append(dtos, MessageDTO{
 			ID:             m.ID,
 			ConversationID: m.ConversationID,
 			SenderID:       m.SenderID,
-			Content:        string(m.Content), // TODO: Decrypt if needed
+			Content:        content,
 			SentAt:         time.Unix(m.SentAt, 0),
 			Status:         "sent", // Simple mapping for now
 		})

@@ -11,6 +11,11 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 )
 
+// MarshalPrivateKey provides access to libp2p's marshal function.
+func MarshalPrivateKey(priv crypto.PrivKey) ([]byte, error) {
+	return crypto.MarshalPrivateKey(priv)
+}
+
 var (
 	ErrKeyNotFound = errors.New("identity key not found")
 	ErrKeyInvalid  = errors.New("identity key is invalid")

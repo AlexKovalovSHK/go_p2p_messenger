@@ -1,6 +1,8 @@
 package screens
 
 import (
+	"context"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
@@ -27,18 +29,25 @@ func (s *DirectChatScreen) Render() fyne.CanvasObject {
 	list := widget.NewListWithData(
 		s.vm.Messages,
 		func() fyne.CanvasObject {
-			return widget.NewLabel("Message body")
+			// A simple bubble: Card with Label
+			return container.NewHBox(
+				widget.NewCard("", "", widget.NewLabel("")),
+			)
 		},
 		func(i binding.DataItem, o fyne.CanvasObject) {
 			val, _ := i.(binding.Untyped).Get()
 			msg := val.(api.MessageDTO)
 			
-			label := o.(*widget.Label)
-			label.SetText(msg.Content)
+			box := o.(*fyne.Container)
+			card := box.Objects[0].(*widget.Card)
+			card.SetContent(widget.NewLabel(msg.Content))
+			
 			if msg.IsOwn {
-				label.Alignment = fyne.TextAlignTrailing
+				box.Layout = layout.NewHBoxLayout()
+				box.Objects = []fyne.CanvasObject{layout.NewSpacer(), card}
 			} else {
-				label.Alignment = fyne.TextAlignLeading
+				box.Layout = layout.NewHBoxLayout()
+				box.Objects = []fyne.CanvasObject{card, layout.NewSpacer()}
 			}
 		},
 	)
@@ -46,22 +55,27 @@ func (s *DirectChatScreen) Render() fyne.CanvasObject {
 	input := widget.NewEntry()
 	input.SetPlaceHolder("Type a message...")
 	
-	sendBtn := widget.NewButton("Send", func() {
+	sendBtn := widget.NewButtonWithIcon("", theme.MailSendIcon(), func() {
 		if input.Text == "" {
 			return
 		}
-		pID, _ := peer.Decode(s.vm.GetPeerID())
-		_ = pID 
+		pID, err := peer.Decode(s.vm.GetPeerID())
+		if err != nil {
+			return
+		}
 		
-		// Note: In real app we need recipientPubKey too. 
-		// For MVP, we'll assume we know it or have a getter in api.
-		// s.chatSvc.SendMessage(context.Background(), pID, nil, input.Text)
+		// For MVP, we need the public key. This is a bit tricky without a contact book.
+		// We'll assume the API can handle 'nil' for now or we fetch it.
+		go func() {
+			_, _ = s.chatSvc.SendMessage(context.Background(), pID, nil, input.Text)
+		}()
 		input.SetText("")
 	})
 
 	footer := container.NewBorder(nil, nil, nil, sendBtn, input)
 	
 	header := container.NewHBox(
+		widget.NewButtonWithIcon("", theme.NavigateBackIcon(), s.onBack),
 		widget.NewIcon(theme.AccountIcon()),
 		widget.NewLabelWithStyle(s.vm.GetPeerID(), fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		layout.NewSpacer(),

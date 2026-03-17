@@ -9,25 +9,29 @@ import (
 	"github.com/user/aether/internal/event"
 )
 
-// ChatListViewModel handles data binding for the conversation list.
+// ChatListViewModel handles data binding for the conversation list and node status.
 type ChatListViewModel struct {
 	chatSvc *api.ChatService
 	bus     *event.Bus
 
 	Conversations binding.UntypedList
+	NodeStatus    binding.String
 }
 
 func NewChatListViewModel(chatSvc *api.ChatService, bus *event.Bus) *ChatListViewModel {
-	return &ChatListViewModel{
-		chatSvc:       nil, // Placeholder for actual injection
+	vm := &ChatListViewModel{
+		chatSvc:       chatSvc,
 		bus:           bus,
 		Conversations: binding.NewUntypedList(),
+		NodeStatus:    binding.NewString(),
 	}
+	vm.NodeStatus.Set("Offline")
+	return vm
 }
 
 // Refresh reloads the conversation list from the API.
-func (vm *ChatListViewModel) Refresh(ctx context.Context, chatSvc *api.ChatService) {
-	convs, err := chatSvc.ListConversations(ctx)
+func (vm *ChatListViewModel) Refresh(ctx context.Context) {
+	convs, err := vm.chatSvc.ListConversations(ctx)
 	if err != nil {
 		log.Printf("VM: Failed to list conversations: %v", err)
 		return
@@ -40,12 +44,23 @@ func (vm *ChatListViewModel) Refresh(ctx context.Context, chatSvc *api.ChatServi
 	vm.Conversations.Set(data)
 }
 
-// Watch listens for new messages to trigger refreshes.
-func (vm *ChatListViewModel) Watch(ctx context.Context, chatSvc *api.ChatService) {
-	ch := vm.bus.Subscribe(event.TopicNewMessage)
+// Watch listens for new messages and node reachability to trigger refreshes.
+func (vm *ChatListViewModel) Watch(ctx context.Context) {
+	msgCh := vm.bus.Subscribe(event.TopicNewMessage)
+	reachCh := vm.bus.Subscribe(event.TopicNodeReachability)
+
 	go func() {
-		for range ch {
-			vm.Refresh(ctx, chatSvc)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-msgCh:
+				vm.Refresh(ctx)
+			case ev := <-reachCh:
+				if status, ok := ev.(string); ok {
+					vm.NodeStatus.Set(status)
+				}
+			}
 		}
 	}()
 }

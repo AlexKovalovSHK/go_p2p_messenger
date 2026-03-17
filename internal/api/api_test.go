@@ -27,17 +27,15 @@ func TestChatService_GetMessages(t *testing.T) {
 		ID:             "msg1",
 		ConversationID: "conv1",
 		SenderID:       "alice",
-		Content:        []byte("hello"),
+		Content:        []byte("ENC:hello"),
 		GlobalSeq:      1,
 		SenderSignature: []byte("sig1"),
 		SentAt:         time.Now().Unix(),
 	})
 	require.NoError(t, err)
 
-	require.NoError(t, err)
-
 	bus := event.NewBus()
-	proc := logic.NewMessageProcessor(nil, bus, msgRepo) // nil privKey for now
+	proc := logic.NewMessageProcessor(nil, bus, msgRepo)
 	tp := transport.NewMockTransport()
 
 	svc := api.NewChatService(msgRepo, proc, tp, bus)
@@ -53,7 +51,7 @@ func TestNodeService_GetStatus(t *testing.T) {
 	mgr := identity.NewIdentityManager(t.TempDir() + "/key")
 	id, _ := mgr.Generate()
 
-	svc := api.NewNodeService(id, tp, bus)
+	svc := api.NewNodeService(mgr, id, tp, bus)
 	status := svc.GetStatus(context.Background())
 
 	assert.Equal(t, id.DeviceID(), status.DeviceID)
