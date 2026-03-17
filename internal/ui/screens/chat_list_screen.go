@@ -1,9 +1,13 @@
 package screens
 
 import (
+	"context"
+	"log"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/data/binding"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
@@ -62,6 +66,21 @@ func (s *ChatListScreen) Render() fyne.CanvasObject {
 	header := container.NewHBox(
 		widget.NewLabelWithStyle("Aether", fyne.TextAlignLeading, fyne.TextStyle{Bold: true}),
 		layout.NewSpacer(),
+		widget.NewButtonWithIcon("", theme.ContentAddIcon(), func() {
+			entry := widget.NewEntry()
+			entry.SetPlaceHolder("PeerID...")
+			dialog.ShowForm("Add Contact", "Add", "Cancel", []*widget.FormItem{
+				{Text: "PeerID", Widget: entry},
+			}, func(ok bool) {
+				if ok && entry.Text != "" {
+					go func() {
+						if err := s.vm.AddContact(context.Background(), entry.Text); err != nil {
+							log.Printf("Screen: Failed to add contact: %v", err)
+						}
+					}()
+				}
+			}, fyne.CurrentApp().Driver().AllWindows()[0])
+		}),
 		statusDot,
 		statusLabel,
 	)

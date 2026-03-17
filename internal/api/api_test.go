@@ -38,7 +38,8 @@ func TestChatService_GetMessages(t *testing.T) {
 	proc := logic.NewMessageProcessor(nil, bus, msgRepo)
 	tp := transport.NewMockTransport()
 
-	svc := api.NewChatService(msgRepo, proc, tp, bus)
+	contactRepo := storage.NewContactRepository(db)
+	svc := api.NewChatService(msgRepo, contactRepo, proc, tp, bus)
 	msgs, err := svc.GetMessages(ctx, "conv1", 0, 10)
 	assert.NoError(t, err)
 	assert.Len(t, msgs, 1)

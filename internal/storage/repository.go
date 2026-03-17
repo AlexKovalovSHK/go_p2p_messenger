@@ -202,7 +202,7 @@ func (r *ContactRepository) Add(ctx context.Context, c *Contact) error {
 	})
 }
 
-func (r *ContactRepository) GetAll(ctx context.Context) ([]*Contact, error) {
+func (r *ContactRepository) GetContacts(ctx context.Context) ([]*Contact, error) {
 	query := `SELECT peer_id, public_key, multiaddr, alias, trusted, last_seen, created_at FROM contacts`
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {

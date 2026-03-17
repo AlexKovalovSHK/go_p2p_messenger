@@ -44,9 +44,15 @@ func (vm *ChatListViewModel) Refresh(ctx context.Context) {
 	vm.Conversations.Set(data)
 }
 
-// Watch listens for new messages and node reachability to trigger refreshes.
+// AddContact proxy to ChatService
+func (vm *ChatListViewModel) AddContact(ctx context.Context, peerID string) error {
+	return vm.chatSvc.AddContact(ctx, peerID)
+}
+
+// Watch listens for new messages, new contacts and node reachability to trigger refreshes.
 func (vm *ChatListViewModel) Watch(ctx context.Context) {
 	msgCh := vm.bus.Subscribe(event.TopicNewMessage)
+	contactCh := vm.bus.Subscribe(event.TopicNewContact)
 	reachCh := vm.bus.Subscribe(event.TopicNodeReachability)
 
 	go func() {
@@ -55,6 +61,8 @@ func (vm *ChatListViewModel) Watch(ctx context.Context) {
 			case <-ctx.Done():
 				return
 			case <-msgCh:
+				vm.Refresh(ctx)
+			case <-contactCh:
 				vm.Refresh(ctx)
 			case ev := <-reachCh:
 				if status, ok := ev.(string); ok {

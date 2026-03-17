@@ -7,6 +7,7 @@ import (
 const (
 	// Chat Events
 	TopicNewMessage = "chat.message.new"
+	TopicNewContact = "chat.contact.new"
 	
 	// Sync Events
 	TopicSyncStatus = "sync.status"

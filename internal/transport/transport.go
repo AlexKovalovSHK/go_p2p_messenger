@@ -19,6 +19,9 @@ const (
 type MessageTransport interface {
 	// Send sends a payload to a specific peer.
 	Send(ctx context.Context, to peer.ID, payload []byte) error
+
+	// Connect attempts to establish a connection to a peer.
+	Connect(ctx context.Context, to peer.ID) error
 	
 	// Subscribe registers a handler for incoming messages.
 	Subscribe(handler func(from peer.ID, payload []byte))

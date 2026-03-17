@@ -4,6 +4,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/widget"
 )
 
 // AppNavigator manages the application's window and primary navigation stack.
@@ -25,7 +26,11 @@ func NewAppNavigator(title string) *AppNavigator {
 	master := container.NewStack()
 	
 	// Detail side (Direct Chat) - changes content
-	detail := container.NewStack()
+	detail := container.NewStack(
+		container.NewCenter(
+			widget.NewLabel("Выберите чат из списка слева или добавьте новый контакт"),
+		),
+	)
 
 	split := container.NewHSplit(master, detail)
 	split.Offset = 0.35 // 35% for the list

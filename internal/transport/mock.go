@@ -36,6 +36,11 @@ func (m *MockTransport) Send(ctx context.Context, to peer.ID, payload []byte) er
 	return nil
 }
 
+// Connect mock implementation.
+func (m *MockTransport) Connect(ctx context.Context, to peer.ID) error {
+	return nil
+}
+
 // Subscribe listens.
 func (m *MockTransport) Subscribe(handler func(from peer.ID, payload []byte)) {
 	m.mu.Lock()

@@ -101,6 +101,11 @@ func (t *Libp2pTransport) Start(ctx context.Context) error {
 	return nil
 }
 
+// Connect attempts to establish a connection.
+func (t *Libp2pTransport) Connect(ctx context.Context, to peer.ID) error {
+	return t.host.Connect(ctx, peer.AddrInfo{ID: to})
+}
+
 // Stop gracefully shuts down the transport.
 func (t *Libp2pTransport) Stop() error {
 	return t.host.Close()

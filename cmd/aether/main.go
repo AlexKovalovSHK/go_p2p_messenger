@@ -97,7 +97,8 @@ func main() {
 	})
 
 	// 4. API & UI Initialization (Sprint 4 & 5)
-	chatSvc := api.NewChatService(msgRepo, processor, tPort, bus)
+	contactRepo := storage.NewContactRepository(db)
+	chatSvc := api.NewChatService(msgRepo, contactRepo, processor, tPort, bus)
 	nodeSvc := api.NewNodeService(idMgr, id, tPort, bus)
 
 	nav := ui.NewAppNavigator("Aether Messenger")
@@ -141,7 +142,8 @@ func main() {
 		idScreen := screens.NewIdentityScreen(nodeSvc, func() {
 			showMainChat()
 		})
-		nav.SetContent(idScreen.Render())
+		nav.SetDetail(idScreen.Render())
+		nav.SetSplit()
 	}
 
 	// 5. Final startup logic
