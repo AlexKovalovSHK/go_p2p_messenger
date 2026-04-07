@@ -103,7 +103,13 @@ func (t *Libp2pTransport) Start(ctx context.Context) error {
 
 // Connect attempts to establish a connection.
 func (t *Libp2pTransport) Connect(ctx context.Context, to peer.ID) error {
-	return t.host.Connect(ctx, peer.AddrInfo{ID: to})
+	fmt.Printf("Transport: Attempting to connect to %s...\n", to)
+	if err := t.host.Connect(ctx, peer.AddrInfo{ID: to}); err != nil {
+		fmt.Printf("Transport: Failed to connect to %s: %v\n", to, err)
+		return err
+	}
+	fmt.Printf("Transport: Successfully connected to %s\n", to)
+	return nil
 }
 
 // Stop gracefully shuts down the transport.

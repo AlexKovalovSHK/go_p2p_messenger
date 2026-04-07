@@ -197,7 +197,15 @@ func NewContactRepository(db *DB) *ContactRepository {
 func (r *ContactRepository) Add(ctx context.Context, c *Contact) error {
 	return r.db.WriteTransaction(func(tx *sql.Tx) error {
 		query := `INSERT OR REPLACE INTO contacts (peer_id, public_key, multiaddr, alias, trusted, last_seen, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`
-		_, err := tx.ExecContext(ctx, query, c.PeerID, c.PublicKey, c.Multiaddr, c.Alias, c.Trusted, c.LastSeen, c.CreatedAt)
+		
+		var pk interface{}
+		if len(c.PublicKey) > 0 {
+			pk = c.PublicKey
+		} else {
+			pk = nil
+		}
+
+		_, err := tx.ExecContext(ctx, query, c.PeerID, pk, c.Multiaddr, c.Alias, c.Trusted, c.LastSeen, c.CreatedAt)
 		return err
 	})
 }
