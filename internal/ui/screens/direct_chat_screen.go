@@ -55,7 +55,7 @@ func (s *DirectChatScreen) Render() fyne.CanvasObject {
 	input := widget.NewEntry()
 	input.SetPlaceHolder("Type a message...")
 	
-	sendBtn := widget.NewButtonWithIcon("", theme.MailSendIcon(), func() {
+	onSend := func() {
 		if input.Text == "" {
 			return
 		}
@@ -64,13 +64,14 @@ func (s *DirectChatScreen) Render() fyne.CanvasObject {
 			return
 		}
 		
-		// For MVP, we need the public key. This is a bit tricky without a contact book.
-		// We'll assume the API can handle 'nil' for now or we fetch it.
 		go func() {
 			_, _ = s.chatSvc.SendMessage(context.Background(), pID, nil, input.Text)
 		}()
 		input.SetText("")
-	})
+	}
+	
+	sendBtn := widget.NewButtonWithIcon("", theme.MailSendIcon(), onSend)
+	input.OnSubmitted = func(_ string) { onSend() }
 
 	footer := container.NewBorder(nil, nil, nil, sendBtn, input)
 	

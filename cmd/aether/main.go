@@ -118,7 +118,8 @@ func main() {
 		})
 		
 		nav.SetMaster(listScreen.Render())
-		nav.SetSplit() // Ensure we are in split mode
+		nav.SetDefaultDetail() // Reset detail view to welcome message
+		nav.SetSplit()         // Ensure we are in split mode
 	}
 
 	showDirectChat = func(peerID string) {
@@ -129,7 +130,7 @@ func main() {
 		chatVM.Watch(ctx)
 		
 		chatScreen := screens.NewDirectChatScreen(chatVM, chatSvc, func() {
-			// In Master-Detail, "back" might just clear the detail
+			// In Master-Detail, "back" clears the detail
 			nav.SetDetail(nil) 
 		})
 		nav.SetDetail(chatScreen.Render())
@@ -142,8 +143,8 @@ func main() {
 		idScreen := screens.NewIdentityScreen(nodeSvc, func() {
 			showMainChat()
 		})
-		nav.SetDetail(idScreen.Render())
-		nav.SetSplit()
+		// Show identity screen full-screen initially
+		nav.SetContent(idScreen.Render())
 	}
 
 	// 5. Final startup logic
